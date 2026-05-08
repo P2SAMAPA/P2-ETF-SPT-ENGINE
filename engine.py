@@ -91,12 +91,29 @@ def run_spt(
         cov_full = np.zeros((n, n))
         cov_full[: len(avail), : len(avail)] = cov
 
-        # Equal-cap proxy weights (ETF universe has no market cap)
-        mkt_weights = np.ones(n) / n
+        # EWM expected returns (annualised)
+        mu_avail = (
+            window.ewm(span=config.COV_WINDOW, min_periods=21).mean().iloc[-1].values
+            * 252
+        )
+        mu_cash = float(cash_returns.loc[:date].iloc[-1] * 252)
+        mu_full = np.append(mu_avail, mu_cash)
+
+        # Market-cap proxy: trailing 252-day cumulative return rank
+        # Gives meaningful dispersion — high performers = "larger cap"
+        # Diversity portfolio then tilts AWAY from them (diversity premium)
+        long_window = min(i, 252)
+        cum_rets = rets[avail].iloc[i - long_window : i].sum().values
+        cum_cash = float(cash_returns.iloc[i - long_window : i].sum())
+        cum_full = np.append(cum_rets, cum_cash)
+        cum_shifted = cum_full - cum_full.min() + 0.01
+        mkt_weights = cum_shifted / cum_shifted.sum()
 
         # ── Compute three strategy weights ────────────────────────────────────
         w_div = diversity_weights(mkt_weights, p=config.DIVERSITY_P)
-        w_ent = max_entropy_weights(n)
+        w_ent = max_entropy_weights(n, mu=mu_full)
+        w_vol = volatility_harvest_weights(variances_full)
+
         w_vol = volatility_harvest_weights(variances_full)
 
         # ── Update ensemble blend every ENSEMBLE_REBL_FREQ days ──────────────
