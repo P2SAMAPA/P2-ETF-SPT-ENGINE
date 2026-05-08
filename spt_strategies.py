@@ -37,22 +37,30 @@ def diversity_weights(
 ) -> np.ndarray:
     """Fernholz diversity portfolio: w_i ∝ mu_i^p.
 
-    For p < 1 this overweights smaller assets, generating a diversity premium.
-    market_weights: capitalisation-proxy weights (equal for ETF universe).
+    In the original SPT, mu_i are market-cap weights. For an ETF universe
+    without market caps, we use trailing cumulative return as a size proxy —
+    assets with higher cumulative performance get higher "market weight",
+    and the p<1 exponent then tilts AWAY from them (diversity premium).
+
+    This produces genuinely differentiated weights unlike equal-weight input.
     """
-    w = market_weights**p
+    # Shift weights to be strictly positive before raising to power p
+    w = np.clip(market_weights, 1e-6, None)
+    w = w / w.sum()
+    w = w**p
     return _clip_normalise(w)
 
 
 # ── 2. Maximum Entropy ────────────────────────────────────────────────────────
 
 
-def max_entropy_weights(n: int) -> np.ndarray:
-    """Maximise portfolio entropy H = -Σ w_i log(w_i).
+def max_entropy_weights(n: int, mu: np.ndarray | None = None) -> np.ndarray:
+    """Maximise portfolio entropy H = -Σ w_i log(w_i) subject to return floor.
 
-    Closed-form solution subject to min/max bounds is uniform within bounds,
-    then renormalised. Entropy maximisation is equivalent to minimising
-    -H subject to Σw=1, w∈[min,max].
+    Pure entropy maximisation always gives uniform weights — not useful.
+    Instead we maximise entropy SUBJECT TO expected return >= median(mu),
+    which spreads weight as evenly as possible while still targeting returns.
+    When mu is None, falls back to pure maximum entropy (uniform).
     """
     w0 = np.ones(n) / n
 
@@ -64,7 +72,18 @@ def max_entropy_weights(n: int) -> np.ndarray:
         w_safe = np.clip(w, 1e-10, 1.0)
         return np.log(w_safe) + 1.0
 
-    constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+    constraints: list[dict] = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+
+    if mu is not None and np.any(mu != 0):
+        # Require portfolio return >= median asset return
+        ret_floor = float(np.median(mu))
+        constraints.append(
+            {
+                "type": "ineq",
+                "fun": lambda w: float(w @ mu) - ret_floor,
+            }
+        )
+
     bounds = [(config.MIN_WEIGHT, config.MAX_WEIGHT)] * n
 
     with warnings.catch_warnings():
@@ -76,7 +95,7 @@ def max_entropy_weights(n: int) -> np.ndarray:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints,
-            options={"maxiter": 300},
+            options={"maxiter": 500},
         )
     return _clip_normalise(result.x if result.success else w0)
 
