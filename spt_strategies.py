@@ -119,9 +119,11 @@ def volatility_harvest_weights(variances: np.ndarray) -> np.ndarray:
         return -0.5 * float(w @ variances - port_var)
 
     def _gamma_exact(w: np.ndarray) -> float:
-        # Exact: gamma = 0.5 * (Σ w_i σ_i² - Σ_ij w_i w_j σ_ij)
-        # Using diagonal approx: gamma ≈ 0.5 * Σ w_i σ_i² * (1 - w_i)
-        return -0.5 * float(np.sum(w * variances * (1.0 - w)))
+        # gamma_p = 0.5 * (Σ w_i σ_i² - σ_p²)
+        # = 0.5 * (weighted avg variance - portfolio variance)
+        weighted_var = float(w @ variances)
+        port_var = float(w @ np.diag(variances) @ w)  # diagonal cov approx
+        return -(weighted_var - port_var)  # maximise spread
 
     constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
     bounds = [(config.MIN_WEIGHT, config.MAX_WEIGHT)] * n
