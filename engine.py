@@ -20,12 +20,15 @@ def _select_top(
     weights: np.ndarray,
     assets: list[str],
 ) -> tuple[np.ndarray, list[str]]:
-    """Keep top MAX_ASSETS by weight, re-normalise."""
+    """Keep top MAX_ASSETS by weight, preserve relative differences."""
     idx = np.argsort(weights)[::-1][: config.MAX_ASSETS]
     idx = np.sort(idx)
     w = weights[idx]
-    w = np.clip(w, config.MIN_WEIGHT, config.MAX_WEIGHT)
-    w /= w.sum()
+    # Re-normalise WITHOUT re-clipping so relative differences are preserved
+    w = w / w.sum()
+    # Only enforce max weight cap after normalisation
+    w = np.clip(w, 0.0, config.MAX_WEIGHT)
+    w = w / w.sum()
     return w, [assets[i] for i in idx]
 
 
