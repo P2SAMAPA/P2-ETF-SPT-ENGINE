@@ -20,16 +20,31 @@ def _select_top(
     weights: np.ndarray,
     assets: list[str],
 ) -> tuple[np.ndarray, list[str]]:
-    """Keep top MAX_ASSETS by weight, preserve relative differences."""
-    idx = np.argsort(weights)[::-1][: config.MAX_ASSETS]
-    idx = np.sort(idx)
-    w = weights[idx]
-    # Re-normalise WITHOUT re-clipping so relative differences are preserved
-    w = w / w.sum()
-    # Only enforce max weight cap after normalisation
-    w = np.clip(w, 0.0, config.MAX_WEIGHT)
-    w = w / w.sum()
-    return w, [assets[i] for i in idx]
+    """Select top MAX_ASSETS and assign rank-based weights.
+
+    The raw blended weights from SPT strategies compress to near-equal values
+    when the universe is large (24 assets). To produce genuinely differentiated
+    allocations, we rank-order the top assets and assign linearly-spaced weights
+    from MAX_WEIGHT down to MIN_WEIGHT — so rank-1 always gets the highest
+    allocation and rank-6 the lowest.
+    """
+    n_select = config.MAX_ASSETS
+    # Rank-ordered indices (best first)
+    ranked_idx = np.argsort(weights)[::-1][:n_select]
+
+    # Linearly-spaced weights: rank 1 = MAX_WEIGHT, rank N = MIN_WEIGHT
+    rank_weights = np.linspace(config.MAX_WEIGHT, config.MIN_WEIGHT, n_select)
+    rank_weights = rank_weights / rank_weights.sum()
+
+    # Preserve original rank order in output (sorted by index for consistency)
+    sorted_idx = np.sort(ranked_idx)
+    # Map back to rank weights in original sort order
+    rank_map = {
+        asset_idx: rank_weights[rank] for rank, asset_idx in enumerate(ranked_idx)
+    }
+    w = np.array([rank_map[i] for i in sorted_idx])
+
+    return w, [assets[i] for i in sorted_idx]
 
 
 def run_spt(
