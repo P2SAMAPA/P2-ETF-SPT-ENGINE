@@ -25,6 +25,11 @@ EQUITY_SECTORS_TICKERS = [
     "XME",
     "IWF",
     "XSD",
+    "SMH",
+    "SOXX",
+    "IWD",
+    "IWO",
+    "XLB",
     "XBI",
     "IWM",
 ]
