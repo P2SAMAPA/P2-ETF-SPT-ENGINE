@@ -102,7 +102,7 @@ def colour(asset: str, i: int) -> str:
 st.markdown("# 🎲 Stochastic Portfolio Theory Engine")
 st.caption(
     "Fernholz SPT · Three strategies: Diversity-Weighted · Max-Entropy · Volatility Harvest · "
-    "Dynamic Sortino ensemble blend · Daily rebalance · Top 6 assets"
+    "Dynamic Sortino ensemble blend · Daily rebalance · Top 4 assets"
 )
 
 with st.sidebar:
