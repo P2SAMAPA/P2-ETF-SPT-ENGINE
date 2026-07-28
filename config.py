@@ -27,6 +27,7 @@ EQUITY_SECTORS_TICKERS = [
     "XSD",
     "SMH",
     "SOXX",
+    "URA",
     "IWD",
     "IWO",
     "XLB",
@@ -53,7 +54,7 @@ SORTINO_EVAL_WINDOW = 63  # window for dynamic ensemble Sortino scoring
 ENSEMBLE_REBL_FREQ = 21  # reweight ensemble monthly
 
 # Output portfolio
-MAX_ASSETS = 6  # top 5 ETFs + CASH
+MAX_ASSETS = 4  # top 3 ETFs + CASH
 MIN_WEIGHT = 0.005  # lower floor gives optimiser more room to differentiate
 MAX_WEIGHT = 0.45
 
